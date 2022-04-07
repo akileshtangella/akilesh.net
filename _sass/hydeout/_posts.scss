@@ -11,9 +11,12 @@
 .page-title,
 .post-title {
   margin-top: 0;
+  background-color: white;
+  margin-bottom: 0;
+  padding: 1rem;
 }
 
-.page-title,
+.page-title
 .post-title,
 .post-title a {
   color: $heading-color;
