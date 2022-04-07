@@ -76,6 +76,7 @@ body {
   header ~ nav,
   p.lead {
     display: none;
+    font-family: $root-font-family;
   }
 }
 
