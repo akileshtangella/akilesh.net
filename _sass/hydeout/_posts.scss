@@ -13,7 +13,8 @@
   margin-top: 0;
   background-color: white;
   margin-bottom: 0;
-  padding: 1rem;
+  padding-top: 2rem;
+  padding-left: 1rem;
 }
 
 .page-title
@@ -25,6 +26,7 @@
 h2.post-title,
 h2.page-title {
   font-size: 2rem;
+  padding-left: 0rem
 }
 
 .post-tags a {
