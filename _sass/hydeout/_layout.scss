@@ -71,14 +71,14 @@ body {
 
 // Hide secondary nav content in sidebar
 // Hide lead paragraph in sidebar
-#sidebar {
-  header ~ *,
-  header ~ nav,
-  p.lead {
-    display: none;
-    font-family: $root-font-family;
-  }
-}
+// #sidebar {
+//   header ~ *,
+//   header ~ nav,
+//   p.lead {
+//     display: none;
+//     font-family: $root-font-family;
+//   }
+// }
 
 // Make header elements blend into sidebar / background
 .container > header {
