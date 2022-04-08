@@ -3,8 +3,8 @@ markdown:         kramdown
 highlighter:      rouge
 
 # Setup
-title:            'Decentralized Robots'
-description:      '...writings on artificial intelligence, blockchains, and robotics'
+title:            'The Decentralized Robot'
+description:      '...writings on blockchains and related technologies'
 url:              https://akilesh.net
                   # the optional subpath of your site, e.g. "/blog"
                   # NB: This applies to all pages in your Jekyll site.
