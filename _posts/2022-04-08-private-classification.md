@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Private Classification"
+title: "Private Classification"
 tags: 
     - privacy
     - machine learning
