@@ -3,7 +3,7 @@ markdown:         kramdown
 highlighter:      rouge
 
 # Setup
-title:            'The Decentralized Robot'
+title:            'Robot Maths'
 description:      '...writings on AI, robotics, and business'
 url:              https://akilesh.net
                   # the optional subpath of your site, e.g. "/blog"
