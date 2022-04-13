@@ -1,0 +1,238 @@
+I"�u<p>This is blog post is a response to Balaji Srinivasan’s <strong>Open Problems in Crypto Infrastructure</strong> <a href="https://youtu.be/l2VQkbucXns?t=1077" target="_blank">YouTube video</a>. Particularly, we show a toy solution for the <strong>Automated Accounting, Triple-Entry Bookkeeping, Streaming Financials</strong> problem.</p>
+
+<p>The code corresponding to this blog post is on Github <a href="https://github.com/saiakilesh/automated-crypto-accounting" target="_blank">here</a>. To run the code, follow the instructions in the <code class="language-plaintext highlighter-rouge">README.md</code> file. The code uses Solidity, TypeScript, and the Hardhat Ethereum development environment. Since this is a toy solution, we will not optimize for gas usage, and instead optimize for code clarity. Also, to keep the blog post to a reasonable length, we will include GitHub links to relevant code snippets and pictures instead of directly including them here.</p>
+
+<p>A quick summary of the blog post is as follows:</p>
+<ul>
+  <li>We start with going over the three financial statements of accounting</li>
+  <li>We then show how to implement a Solidity smart contract to that can conduct business tranasactions and do accounting</li>
+  <li>Finally, we deploy this smart contract to a local Hardhat network and use it to do accounting for a hypothetical company over the course of a hypothetical fiscal year</li>
+</ul>
+
+<h2 id="basics-of-accounting">Basics of Accounting</h2>
+<p>We closely follow Thomas Ittelson’s presentation of accounting in his book <em>Financial Accounting</em>. In accounting, there are three financial statements:</p>
+<ul>
+  <li>
+    <p><strong>Balance Sheet</strong>: Contains information about what a company has (Assets), what it owes (Liabilities), and what it’s worth (Equity) at a particular point in time. It always maintains the invariant <strong>Assets = Liabilities + Equity</strong>. The types of entries of a basic balance sheet can be seen in <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.35.31%20AM.png" target="_blank">this picture</a></p>
+  </li>
+  <li>
+    <p><strong>Income Statement</strong>: Contains information about the making and selling activities over a period of time. It documents the details of the equality <strong>Sales - Costs &amp; Expenses = Income</strong>. The types of entries of a basic income statement can be seen in <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.35.42%20AM.png" target="_blank">this picture</a>.</p>
+  </li>
+  <li>
+    <p><strong>Cash Flow Statement</strong>: Tracks the movement of cash through a business over a period of time. The types of entries of a basic cash flow statement can be seen in <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.35.49%20AM.png" target="_blank">this picture</a>.</p>
+  </li>
+</ul>
+
+<p>During the course of business, companies take various types of <strong>actions</strong>, which in turn change the entries in these statements. For instance, raising equity affects the balance sheet by increasing <em>cash</em> and increasing <em>shareholder’s equity</em>. It also affects the cash flow statement by increasing the <em>sale of capital stock</em> entry. We will describe more actions and how they affect the various statements in the section below.</p>
+
+<h2 id="an-aside-using-an-erc20-token-contract-to-mock-usd-coin-usdc">An Aside: Using an ERC20 Token Contract to Mock USD Coin (USDC)</h2>
+
+<p>USDC is our currency of choice for doing business and accounting. Since we will deploy to a local Hardhat network, we don’t actually have access to USDC. So instead, we will use a generic ERC20 token contract from <a href="https://docs.openzeppelin.com/contracts/2.x/api/token/erc20">OpenZeppelin</a> to mock USDC. We call this contract <code class="language-plaintext highlighter-rouge">USDC.sol</code>.</p>
+
+<p>For readers unfamiliar with ERC20 smart contracts, they maintain a mapping from addresses to balances, which keeps track of how many tokens a particular account owns. Tokens can be transferred between two accounts in the following two ways:</p>
+<ul>
+  <li>The owner of the token calls the <code class="language-plaintext highlighter-rouge">transfer</code> function, which takes in the amount to transfer and the recipient to transfer to.</li>
+  <li>The owner of the token calls the <code class="language-plaintext highlighter-rouge">approve</code> function which takes in a spender and an amount. The spender then has the ability to spend the owner’s tokens up to the specified amount by calling the <code class="language-plaintext highlighter-rouge">transferFrom</code> function. The <code class="language-plaintext highlighter-rouge">transferFrom</code> function takes in a sender, which is the account from which the tokens are being transferred, an amount to transfer, and a recipient to transfer to.</li>
+</ul>
+
+<p>We will assume:</p>
+<ul>
+  <li>When we pay USDC, the <code class="language-plaintext highlighter-rouge">transfer</code> method is used.</li>
+  <li>When we are paid USDC, the <code class="language-plaintext highlighter-rouge">approve</code>, <code class="language-plaintext highlighter-rouge">transferFrom</code> method is used.</li>
+</ul>
+
+<h2 id="implementing-an-accounting-smart-contract-in-solidity">Implementing an Accounting Smart Contract in Solidity</h2>
+
+<p>We now describe the main Solidity smart contract that companies can use to conduct businsess and do accounting. The smart contract can be found in the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> file in the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol" target="_blank">Github repository</a>. We will have three storage variable mappings corresponding to the three financial statements: <code class="language-plaintext highlighter-rouge">balanceSheet</code>, <code class="language-plaintext highlighter-rouge">incomeStatement</code>, and <code class="language-plaintext highlighter-rouge">cashFlowStatement</code>. Each mapping maps a <code class="language-plaintext highlighter-rouge">string</code> (such as <code class="language-plaintext highlighter-rouge">'Accounts Receivable'</code>) to a signed integer (such as <code class="language-plaintext highlighter-rouge">100</code>). We need signed integers because some values, like the net income, can be negative. We also have a storage variable that we call <code class="language-plaintext highlighter-rouge">admins</code> which corresponds to the set of employees who are allowed to conduct business (make payments, receive payments, etc.) on behalf of the company. This varible is initialized in the constructor of the contract. See the code for the storage variables and the constructor <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L8-L25" target="_blank">here</a>.</p>
+
+<p>Each type of action taken during the course of business can be represented as a function that changes at least one of the storage mappings. There are many possibilities for types of actions in the business world, but for this blog post we limit ourselves to the following 11 actions.</p>
+
+<h4 id="action-1-raising-equity">Action 1: Raising Equity</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">raiseEquity</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Increasing cash (balance sheet)</li>
+  <li>Increasing capital stock (balance sheet)</li>
+  <li>Increasing sale of capital stock (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">raiseEquity</code> function also receives the equity funds by calling the <code class="language-plaintext highlighter-rouge">transferFrom</code> function on <code class="language-plaintext highlighter-rouge">USDC.sol</code> with the relevant parameters. See the code for the <code class="language-plaintext highlighter-rouge">raiseEquity</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L33-L47" target="_blank">here</a>.</p>
+
+<h4 id="action-2-paying-salaries">Action 2: Paying Salaries</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">paySalary</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Decreasing cash on the balance sheet</li>
+  <li>Decreasing retained earnings (balance sheet)</li>
+  <li>Increasing general and administrative expenses (income statement)</li>
+  <li>Increasing cash disbursemenets (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">paySalary</code> function also pays the salary to the specified employee via the <code class="language-plaintext highlighter-rouge">transfer</code> functoin on <code class="language-plaintext highlighter-rouge">USDC.sol</code>. See the code for the <code class="language-plaintext highlighter-rouge">paySalary</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L51-L67" target="_blank">here</a>.</p>
+
+<h4 id="action-3-taking-on-long-term-debt">Action 3: Taking on Long Term Debt</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">takeLongTermDebt</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Increasing cash by the loan amount (balance sheet)</li>
+  <li>Increasing current portion of the debt by interest rate * loan amount (balance sheet)</li>
+  <li>Increasing long term debt by loan amount - interest rate * loan amount (balance sheet)</li>
+  <li>Increasing long term debt by the loan amount.</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">takeLongTermDebt</code> function also receives the loan funds by calling the <code class="language-plaintext highlighter-rouge">transferFrom</code> function on <code class="language-plaintext highlighter-rouge">USDC.sol</code> with the relevant parameters. See the code for the <code class="language-plaintext highlighter-rouge">takeLongTermDebt</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L71-L88" target="_blank">here</a>.</p>
+
+<h4 id="action-4-paying-interest-on-long-term-debt">Action 4: Paying Interest on Long Term Debt</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">payInterestOnLongTermDebt</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Decreasing cash by the interest amount (balance sheet)</li>
+  <li>Decreasing retained earnings by the interest amount (balance sheet)</li>
+  <li>Decreasing net interest income by the interest amount (income statement)</li>
+  <li>Increasing cash disbursements by the interest amount (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">payInterestOnLongTermDebt</code> function also pays out the interest to the loaner by calling the <code class="language-plaintext highlighter-rouge">transfer</code> function on <code class="language-plaintext highlighter-rouge">USDC.sol</code> with the relevant parameters. See the code for the <code class="language-plaintext highlighter-rouge">payInterestOnLongTermDebt</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L92-L108" target="_blank">here</a>.</p>
+
+<h4 id="action-5-buying-fixed-assets">Action 5: Buying Fixed Assets</h4>
+
+<p>When we buy a fixed asset we may be able to buy on credit, meaning we pay some amount of the cost now and pay the rest later. The <code class="language-plaintext highlighter-rouge">buyFixedAssset</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Increasing fixed asset at cost (balance sheet)</li>
+  <li>Decreasing cash by the amount paid now (balance sheet)</li>
+  <li>Increasing accounts payable by the amount to be paid later (balance sheet)</li>
+  <li>Increasing PP&amp;E purchase by the amount paid now (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">buyFixedAssset</code> function also pays out the amount to be paid now to the seller. See the code for the <code class="language-plaintext highlighter-rouge">buyFixedAssset</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L113-L127" target="_blank">here</a>.</p>
+
+<h4 id="action-6-accumulating-depreciation-on-fixed-assets">Action 6: Accumulating Depreciation on Fixed Assets</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">depreciateFixedAsset</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Increasing accumulated depreciation by the depreciation amount (balance sheet)</li>
+  <li>Increasing inventories by the depreciation amount (balance sheet)</li>
+</ul>
+
+<p>See the code for the <code class="language-plaintext highlighter-rouge">depreciateFixedAsset</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L131-L139" target="_blank">here</a>.</p>
+
+<h4 id="action-7-buying-inventory-for-instance-raw-materials">Action 7: Buying Inventory (for instance, raw materials)</h4>
+
+<p>Similar to buying a fixed asset, when we buy inventory we may be able to buy on credit, meaning we pay some amount of the cost now and pay the rest later. The <code class="language-plaintext highlighter-rouge">buyInventory</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Decreasing cash by the amount paid now (balance sheet)</li>
+  <li>Increasing inventories by the total amount of inventories bought (balance sheet)</li>
+  <li>Increasing accounts payable by total amount of inventories - amount paid now (balance sheet)</li>
+  <li>Increasing cash disbursements by the amount paid now (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">buyInventory</code> function also pays out the amount to be paid now to the seller. See the code for the <code class="language-plaintext highlighter-rouge">buyInventory</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L143-L157" target="_blank">here</a>.</p>
+
+<h4 id="action-8-selling-inventory">Action 8: Selling Inventory</h4>
+
+<p>When we sell inventory, we will receive some cash now and the rest will be booked as accounts receivables. The <code class="language-plaintext highlighter-rouge">sellInventory</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Increasing cash by amount received now (balance sheet)</li>
+  <li>Increasing accounts receivable by amount sold - amount of cash received now (balance sheet).</li>
+  <li>Decreasing inventories by cost of goods sold (balance sheet)</li>
+  <li>Increasing retained earnings by amount sold - cost of goods sold (balance sheet)</li>
+  <li>Increasing net sales by amount sold (income statement)</li>
+  <li>Increasing cost of good sold (income statement)</li>
+  <li>Increasing cash receipts by amount received now (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">sellInventory</code> function also receives payment from the buyer. See the code for the <code class="language-plaintext highlighter-rouge">sellInventory</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L161-L181" target="_blank">here</a>.</p>
+
+<h4 id="action-9-paying-down-accounts-payable">Action 9: Paying down Accounts Payable</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">payAccountsPayable</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Decreasing cash (balance sheet)</li>
+  <li>Decreasing accounts payable (balance sheet)</li>
+  <li>Increase cash disbursements (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">payAccountsPayable</code> function also pays out the relevant amount to the owed party. See the code for the <code class="language-plaintext highlighter-rouge">payAccountsPayable</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L185-L198" target="_blank">here</a>.</p>
+
+<h4 id="action-10-receiving-payments-for-accounts-receivable">Action 10: Receiving Payments for Accounts Receivable</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">receiveAccountsReceivable</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Increasing cash (balance sheet)</li>
+  <li>Decreasing accounts receivable (balance sheet)</li>
+  <li>Increasing cash receipts (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">receiveAccountsReceivable</code> function also receives the funds from the ower using the <code class="language-plaintext highlighter-rouge">transferFrom</code> function on <code class="language-plaintext highlighter-rouge">USDC.sol</code>. See the code for the <code class="language-plaintext highlighter-rouge">receiveAccountsReceivable</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L202-L215" target="_blank">here</a>.</p>
+
+<h4 id="action-11-pay-taxes">Action 11: Pay Taxes</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">payTaxes</code> function changes the three financial statements by:</p>
+
+<ul>
+  <li>Decreasing cash by amount of taxes paid (balance sheet)</li>
+  <li>Decreasing retained earnings by amount of taxes paid (balance sheet)</li>
+  <li>Increasing income taxes by amount of taxes paid (income statement)</li>
+  <li>Increasing income taxes paid by amount of taxes paid (cash flow statement)</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">payTaxes</code> function pays the government using the <code class="language-plaintext highlighter-rouge">transfer</code> function on <code class="language-plaintext highlighter-rouge">USDC.sol</code>. See the code for the <code class="language-plaintext highlighter-rouge">payTaxes</code> function <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/contracts/Accounting.sol#L219-L238" target="_blank">here</a>.</p>
+
+<h2 id="financial-accounting-for-a-hypothetical-company">Financial Accounting for a Hypothetical Company</h2>
+
+<p>We now deploy the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> smart contract to a local Hardhat blochchain and use it to maintain the books of a hypothetical company, which we will call <strong>Stacy’s Lemonade Stand</strong>. Checkout the <code class="language-plaintext highlighter-rouge">deploy.ts</code> script in the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts" target="_blank">Github repository</a> for more details.</p>
+
+<h4 id="stacy-deploys-the-accountingsol-contract">Stacy Deploys the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> Contract</h4>
+
+<p>(<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L91-L93" target="_blank">code)</a>). Initially all the entries in all the statements are 0.</p>
+
+<h4 id="stacy-raises-1000000-of-equity-from-investors">Stacy Raises $1,000,000 of Equity from Investors</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">raiseEquity</code> (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L98" target="_blank">code)</a>).  View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.36.10%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.36.20%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.36.28%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-pays-herself-5000-in-salary">Stacy Pays Herself $5,000 in Salary</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">paySalary</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L102" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.36.42%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.36.51%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.36.59%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-takes-a-10-year-loan-and-buys-a-plot-of-land-for-the-lemonade-stand-for-50000-at-a-10-yearly-interest-rate">Stacy Takes a 10 Year Loan and Buys a Plot of Land for the Lemonade Stand for $50,000 at a 10% Yearly Interest Rate</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">takeLongTermDebt</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L107" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.37.12%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.37.21%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.37.29%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-buys-a-jug-to-make-her-lemonade-in-the-total-cost-is-10000-but-she-only-pays-for-half-now">Stacy Buys a Jug to Make Her Lemonade In. The Total Cost is $10,000, but She Only Pays for Half Now</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">buyFixedAsset</code> (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L111" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.37.39%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.37.49%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.37.59%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-buys-lemonade-powder-and-water-the-raw-materials-needed-to-make-lemonade-for-500">Stacy Buys Lemonade Powder and Water, the Raw Materials Needed to Make Lemonade for $500</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">buyInventory</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L115" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.38.17%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.38.26%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.38.34%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-makes-lemonade-and-sells-all-of-it-to-alice-20000-she-receives-cash-for-half-of-the-lemonade">Stacy Makes Lemonade and Sells All of it to Alice $20,000. She Receives Cash for Half of the Lemonade</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">sellInventory</code> function (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L120" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.38.47%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.38.55%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.02%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-pays-off-the-other-5000-she-owes-for-the-jug">Stacy Pays Off the Other $5,000 She Owes for the Jug</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">payAccountsPayable</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L124" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.13%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.20%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.28%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-receives-the-other-10000-she-is-owed-from-her-customers">Stacy Receives the Other $10,000 She is Owed From Her Customers</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">receiveAccountsReceivable</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L129" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.37%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.44%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.39.51%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="its-the-end-of-the-fiscal-year-stacy-pays-the-interest-she-owes-on-the-loan-she-used-to-buy-the-plot-of-land">It’s the End of the Fiscal Year. Stacy Pays the Interest She Owes on the Loan She Used to Buy the Plot of Land</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">payInterestOnLongTermDebt</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L133" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.40.03%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.40.11%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.40.18%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-accumulates-depreciation-on-her-jug">Stacy Accumulates Depreciation on Her Jug</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">depreciateFixedAsset</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L137" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.40.46%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.40.54%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.41.01%20AM.png" target="_blank">cash flow statement</a> after taking this action.</p>
+
+<h4 id="stacy-pays-income-taxes">Stacy Pays Income Taxes</h4>
+<p>Stacy calls the <code class="language-plaintext highlighter-rouge">payTaxes</code> function with (<a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/scripts/deploy.ts#L141" target="_blank">code)</a>). View the <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.41.11%20AM.png" target="_blank">balance sheet</a>, <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.41.17%20AM.png" target="blank">income statement</a>, and <a href="https://github.com/saiakilesh/automated-crypto-accounting/blob/main/pics/Screen%20Shot%202022-04-13%20at%205.41.25%20AM.png" target="_blank">cash flow statement</a> after taking this action. Note the following facts:</p>
+
+<ul>
+  <li>Retained earnings on the balance sheet equals net income on the income statement.</li>
+  <li>Cash on the balance sheet equals ending cash balance on the cash flow statement.</li>
+</ul>
+
+<p>This implies that our code works as desired.</p>
+:ET

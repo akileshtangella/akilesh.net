@@ -1,0 +1,40 @@
+I"	<p>This is blog post is a response to Balaji Srinivasan’s <strong>Open Problems in Crypto Infrastructure</strong> <a href="https://youtu.be/l2VQkbucXns?t=1077">YouTube video</a>. Particularly, we show a toy solution for the <strong>Automated Accounting, Triple-Entry Bookkeeping, Streaming Financials</strong> problem.</p>
+
+<p>The code corresponding to this blog post is on Github <a href="">here</a>. The code uses Solidity, TypeScript, and the Hardhat Ethereum development environment. Since this is a toy solution, we will not optimize for gas usage, and instead optimize for code clarity.</p>
+
+<h2 id="basics-of-accounting">Basics of Accounting</h2>
+<p>We closely follow Thomas Ittelson’s presentation of accounting in his book <em>Financial Accounting</em>. In accounting, there are three financial statements:</p>
+<ul>
+  <li>
+    <p><strong>Balance Sheet</strong>: Contains information about what a company has (Assets), what it owes (Liabilities), and what it’s worth (Equity) at a particular point in time. It always maintains the invariant <strong>Assets = Liabilities + Equity</strong>. The types of entries of a basic balance sheet can be seen in the figure below:</p>
+  </li>
+  <li>
+    <p><strong>Income Statement</strong>: Contains information about the making and selling activities over a period of time. It documents the details of the equality <strong>Sales - Costs &amp; Expenses = Income</strong>. The types of entries of a basic income statement can be seen in the figure below:</p>
+  </li>
+  <li>
+    <p><strong>Cash Flow Statement</strong>: Tracks the movement of cash through a business over a period of time. The types of entries of a basic income statement can be seen in the figure below:</p>
+  </li>
+</ul>
+
+<p>There are various <strong>actions</strong> that change the entries in these statements. For instance,. We will describe more actions and how they affect the various statements in the section below.</p>
+
+<h2 id="implementing-an-accounting-smart-contract-in-solidity">Implementing an Accounting Smart Contract in Solidity</h2>
+
+<p>We now describe the main Solidity smart contract for doing accounting. The smart contract can be found in the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> file in the <a href="">Github repository</a>. We will have three storage variable mappings corresponding to the three financial statements: <code class="language-plaintext highlighter-rouge">BalanceSheet</code>, <code class="language-plaintext highlighter-rouge">IncomeStatement</code>, and <code class="language-plaintext highlighter-rouge">CashFlowStatement</code>. Each mapping maps a <code class="language-plaintext highlighter-rouge">string</code> (such as <code class="language-plaintext highlighter-rouge">'Accounts Receivable'</code> to a signed integer (such as <code class="language-plaintext highlighter-rouge">100</code>). We need signed integers because some values, like the net income, can be negative.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSERT CODE
+</code></pre></div></div>
+
+<p>Each action can be represented as a function that changes at least one of the storage mappings. We go three each of these functions:</p>
+
+<p><strong>Action 1:</strong></p>
+
+<h2 id="financial-accounting-for-a-hypothetical-company">Financial Accounting for a Hypothetical Company</h2>
+
+<p>We now deploy the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> smart contract to a local Hardhat blochchain and use it to maintain the books of a hypothetical company, which we will call <strong>Stacy’s Lemonade Stand</strong>. The books will be maintained in a streaming fashion, which means that after each action, the books will be updated. Checkout the <code class="language-plaintext highlighter-rouge">deploy.ts</code> script in the <a href="">Github repository</a> for more details.</p>
+
+<p><strong>Initial Statements</strong></p>
+
+<p>Initially all the entries in all the statements are 0:</p>
+
+<p><strong>Raise $100,000 of Equity from Investors</strong></p>
+:ET

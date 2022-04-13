@@ -1,0 +1,84 @@
+I"�<p>This is blog post is a response to Balaji Srinivasan’s <strong>Open Problems in Crypto Infrastructure</strong> <a href="https://youtu.be/l2VQkbucXns?t=1077">YouTube video</a>. Particularly, we show a toy solution for the <strong>Automated Accounting, Triple-Entry Bookkeeping, Streaming Financials</strong> problem.</p>
+
+<p>The code corresponding to this blog post is on Github <a href="">here</a>. The code uses Solidity, TypeScript, and the Hardhat Ethereum development environment. Since this is a toy solution, we will not optimize for gas usage, and instead optimize for code clarity.</p>
+
+<h2 id="basics-of-accounting">Basics of Accounting</h2>
+<p>We closely follow Thomas Ittelson’s presentation of accounting in his book <em>Financial Accounting</em>. In accounting, there are three financial statements:</p>
+<ul>
+  <li>
+    <p><strong>Balance Sheet</strong>: Contains information about what a company has (Assets), what it owes (Liabilities), and what it’s worth (Equity) at a particular point in time. It always maintains the invariant <strong>Assets = Liabilities + Equity</strong>. The types of entries of a basic balance sheet can be seen in the figure below:</p>
+  </li>
+  <li>
+    <p><strong>Income Statement</strong>: Contains information about the making and selling activities over a period of time. It documents the details of the equality <strong>Sales - Costs &amp; Expenses = Income</strong>. The types of entries of a basic income statement can be seen in the figure below:</p>
+  </li>
+  <li>
+    <p><strong>Cash Flow Statement</strong>: Tracks the movement of cash through a business over a period of time. The types of entries of a basic income statement can be seen in the figure below:</p>
+  </li>
+</ul>
+
+<p>There are various <strong>actions</strong> that change the entries in these statements. For instance, raising equity affects the balance sheet by increasing cash and increasing shareholder’s equity. It also affects the cash flow statement by increasing the <em>sale of capital stock</em> entry. We will describe more actions and how they affect the various statements in the section below.</p>
+
+<h2 id="implementing-an-accounting-smart-contract-in-solidity">Implementing an Accounting Smart Contract in Solidity</h2>
+
+<p>We now describe the main Solidity smart contract for doing accounting. The smart contract can be found in the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> file in the <a href="">Github repository</a>. We will have three storage variable mappings corresponding to the three financial statements: <code class="language-plaintext highlighter-rouge">BalanceSheet</code>, <code class="language-plaintext highlighter-rouge">IncomeStatement</code>, and <code class="language-plaintext highlighter-rouge">CashFlowStatement</code>. Each mapping maps a <code class="language-plaintext highlighter-rouge">string</code> (such as <code class="language-plaintext highlighter-rouge">'Accounts Receivable'</code> to a signed integer (such as <code class="language-plaintext highlighter-rouge">100</code>). We need signed integers because some values, like the net income, can be negative.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSERT CODE
+</code></pre></div></div>
+
+<p>Each action can be represented as a function that changes at least one of the storage mappings. One</p>
+
+<p>There are many more possibilities for actions in the accounting world, but for this blog post we limit ourselves to the following 11 actions.</p>
+
+<h4 id="action-1-raising-equity">Action 1: Raising Equity</h4>
+
+<h4 id="action-2-paying-salaries">Action 2: Paying Salaries</h4>
+
+<h4 id="action-3-taking-on-long-term-debt">Action 3: Taking on Long Term Debt</h4>
+
+<h4 id="action-4-paying-interest-on-long-term-debt">Action 4: Paying Interest on Long Term Debt</h4>
+
+<h4 id="action-5-buying-fixed-assets">Action 5: Buying Fixed Assets</h4>
+
+<h4 id="action-6-accumulating-depreciation-on-fixed-assets">Action 6: Accumulating Depreciation on Fixed Assets</h4>
+
+<h4 id="action-7-buying-inventory">Action 7: Buying Inventory</h4>
+
+<h4 id="action-8-selling-inventory">Action 8: Selling Inventory</h4>
+
+<h4 id="action-9-paying-off-accounts-payable">Action 9: Paying off Accounts Payable</h4>
+
+<h4 id="action-10-receiving-payments-for-accounts-receivable">Action 10: Receiving Payments for Accounts Receivable</h4>
+
+<h4 id="action-11-pay-income-taxes">Action 11: Pay Income Taxes</h4>
+
+<p>**</p>
+
+<h2 id="financial-accounting-for-a-hypothetical-company">Financial Accounting for a Hypothetical Company</h2>
+
+<p>We now deploy the <code class="language-plaintext highlighter-rouge">Accounting.sol</code> smart contract to a local Hardhat blochchain and use it to maintain the books of a hypothetical company, which we will call <strong>Stacy’s Lemonade Stand</strong>. Again we closely follow Thomas Ittelson’s book <em>Financial Statements</em>. The books will be maintained in a streaming fashion, which means that after each action, the books will be updated. Checkout the <code class="language-plaintext highlighter-rouge">deploy.ts</code> script in the <a href="">Github repository</a> for more details.</p>
+
+<h4 id="initial-statements">Initial Statements</h4>
+
+<p>Initially all the entries in all the statements are 0:</p>
+
+<h4 id="stacy-raises-1000000-of-equity-from-investors">Stacy Raises $1,000,000 of Equity from Investors</h4>
+
+<h4 id="stacy-pays-herself-50000-in-salary">Stacy Pays Herself $50,000 in Salary</h4>
+
+<h4 id="stacy-takes-a-10-year-loan-and-buys-a-plot-of-land-for-the-lemonade-stand-for-50000-at-a-10-yearly-interest-rate">Stacy Takes a 10 Year Loan and Buys a Plot of Land for the Lemonade Stand for $50,000 at a 10% Yearly Interest Rate</h4>
+
+<h4 id="stacy-buys-a-jug-to-make-her-lemonade-in-the-total-cost-is-10000-but-she-only-pays-for-half-now">Stacy Buys a Jug to Make Her Lemonade In. The Total Cost is $10,000, but She Only Pays for Half Now</h4>
+
+<h4 id="stacy-buys-lemonade-powder-and-water-the-raw-materials-needed-to-make-lemonade-for-500">Stacy Buys Lemonade Powder and Water, the Raw Materials Needed to Make Lemonade for $500</h4>
+
+<h4 id="stacy-makes-lemonade-and-sells-it-to-alice-20000-she-receives-cash-from-half-of-the-customers-and-lets-the-other-half-buy-on-credit">Stacy Makes Lemonade and Sells it to Alice $20,000. She Receives Cash from Half of The Customers and Let’s the Other Half Buy on Credit</h4>
+
+<h4 id="stacy-pays-off-the-other-5000-she-owes-for-the-jug">Stacy Pays Off the Other $5,000 She Owes for the Jug</h4>
+
+<h4 id="stacy-receives-the-other-10000-she-is-owed-from-her-customers">Stacy Receives the Other $10,000 She is Owed From Her Customers</h4>
+
+<h4 id="its-the-end-of-the-fiscal-year-stacy-pays-the-interest-she-owes-on-the-loan-she-used-to-buy-the-plot-of-land">It’s the End of the Fiscal Year. Stacy Pays the Interest She Owes on the Loan She Used to Buy the Plot of Land</h4>
+
+<h4 id="stacy-accumulates-depreciation-on-her-jug">Stacy Accumulates Depreciation on Her Jug</h4>
+
+<h4 id="stacy-pays-income-taxes">Stacy Pays Income Taxes</h4>
+:ET
