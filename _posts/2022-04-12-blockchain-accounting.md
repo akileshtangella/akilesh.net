@@ -6,7 +6,7 @@ tags:
     - blockchains
 usemathjax: true
 ---
-This is blog post is a response to Balaji Srinivasan's Open Problems in Crypto Infrastructure [YouTube video](https://youtu.be/l2VQkbucXns?t=1077){:target="_blank"}. Particularly, we show a toy solution for the Automated Accounting, Triple-Entry Bookkeeping, Streaming Financials problem.
+This blog post is a response to Balaji Srinivasan's Open Problems in Crypto Infrastructure [YouTube video](https://youtu.be/l2VQkbucXns?t=1077){:target="_blank"}. Particularly, we show a toy solution for the Automated Accounting, Triple-Entry Bookkeeping, Streaming Financials problem.
 
 The code corresponding to this blog post is on Github [here](https://github.com/saiakilesh/automated-crypto-accounting){:target="_blank"}. To run the code, follow the instructions in the `README.md` file. The code uses Solidity, TypeScript, and the Hardhat Ethereum development environment. Since this is a toy solution, we will not optimize for gas usage, and instead optimize for code clarity. Also, to keep the blog post to a reasonable length, we will include GitHub links to relevant code snippets and pictures instead of directly including them here.
 
