@@ -1,3 +1,0 @@
-I"Ö<h2 id="setup">Setup</h2>
-<p>Suppose Alice owns a health insurance company which has developed a logistic regression model with weights \(w = (w_1,...,w_d)\) for checking whether a person qualifies for insurance. Bob wants to check whether he is eligible for insurance at Aliceâ€™s company, but does not want to reveal his personal medical data \(x = (x_1,...,x_d)\). In this article, we discuss how to use well-known cryptographic primitives to solve this problem.</p>
-:ET

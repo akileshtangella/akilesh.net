@@ -1,0 +1,19 @@
+body {
+    background-color: #28282b;
+    font-family: 'Inconsolata', monospace   ;
+    padding-top: 60px;
+    padding-left: 200px;
+    padding-right: 200px;
+    color: #fdfbf9;
+    font-size: 20px;
+}
+
+@media only screen and (max-width: 600px) {
+    body {
+        padding: 40px 30px;
+    }
+}
+
+a, a:hover {
+    color: #fdfbf9;
+}
